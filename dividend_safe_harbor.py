@@ -211,6 +211,6 @@ if analysis_data:
     )
     
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
-    st.info("💡 Pro Tip: Inlfation rate is set to the national average. Changing the Inflation rate % may change the recommended projected Allocation Grade for some equities.")
+    st.info("💡 Pro Tip: Inflation rate is set to the national average. Changing the Inflation rate % may change the recommended projected Allocation Grade for some equities.")
 else:
     st.error("The underlying execution engine could not find valid asset data. Correct ticker entry formatting.")
