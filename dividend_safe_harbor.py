@@ -9,7 +9,7 @@ from datetime import datetime
 st.set_page_config(page_title="Nice & Boring Dividend Screener", layout="wide")
 st.title("🛡️ The 'Nice & Boring' Dividend Screener")
 st.caption("By Jeff Diamond (2026)")
-st.subheader("Evaluating Corporate Capital Allocation & Pricing Power (using data from 2018 to present)")
+st.subheader("🔍 Evaluating Corporate Capital Allocation & Pricing Power (using data from 2018 to present)")
 
 # ==============================================================================
 # 2. SIDEBAR CONTROLS
@@ -36,7 +36,7 @@ projection_years = st.sidebar.slider(
 # ==============================================================================
 # 3. TICKER INPUT
 # ==============================================================================
-st.markdown("### 🔍 Enterprise Search Pipeline")
+st.markdown()
 ticker_input = st.text_input(
     label="Enter Ticker Symbols (separated by commas):",
     value="SPY, JNJ, KO,",
