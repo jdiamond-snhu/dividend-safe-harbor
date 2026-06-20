@@ -41,7 +41,6 @@ ticker_input = st.text_input(
     value="JNJ, VOO, GLD, PG, KO, XPAY, O",
 )
 
-# Strip whitespace and convert strings to clean uppercase lists
 tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
 
 if len(tickers) == 0:
@@ -60,7 +59,6 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
         try:
             asset = yf.Ticker(ticker)
             
-            # Fetch yfinance core metadata safely
             try:
                 info = asset.info
                 if info is None or not isinstance(info, dict):
@@ -71,15 +69,26 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
             quote_type = info.get('quoteType', 'EQUITY').upper()
             company_name = info.get('longName', ticker)
             
-            # --- FIXED: AUTOMATED DYNAMIC DECIMAL SANITY CHECK ---
+            # --- DYNAMIC ASSET TYPE IDENTIFICATION ---
+            # Check industry first to look for REITs or specialized sectors
+            industry_str = info.get('industry', '')
+            
+            if "REIT" in industry_str or "Real Estate" in industry_str:
+                asset_type = "REIT"
+            elif quote_type != "EQUITY":
+                asset_type = quote_type  # e.g., ETF, MUTUALFUND
+            elif industry_str:
+                asset_type = industry_str
+            else:
+                asset_type = "Equity"
+            
+            # Dynamic Decimal Sanity Check
             raw_yield = info.get('dividendYield', 0.0)
             if raw_yield is not None:
                 raw_yield = float(raw_yield)
-                # If the API returns a tiny decimal like 0.0235, multiply by 100 to get 2.35%
                 if raw_yield < 0.25 and raw_yield > 0.0:
                     current_yield = raw_yield * 100
                 else:
-                    # If the API already returns a full float value like 2.35, preserve it directly
                     current_yield = raw_yield
             else:
                 current_yield = 0.0
@@ -130,6 +139,7 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
             results[ticker] = {
                 "name": company_name,
                 "quote_type": quote_type,
+                "asset_type": asset_type,
                 "yield": current_yield,
                 "schedule": schedule,
                 "div_growth_cagr": div_growth_cagr,
@@ -151,7 +161,6 @@ if analysis_data:
     
     grid_data = []
     for ticker, data in analysis_data.items():
-        # Dynamic horizon compounding calculation logic
         cagr_decimal = data["div_growth_cagr"] / 100
         compounded_growth = ((1 + cagr_decimal) ** projection_years - 1) * 100
         
@@ -169,10 +178,11 @@ if analysis_data:
             else:
                 safety_status = "🟡 Moderate Allocation"
           
-        # Map parameters straight to left-aligned string values to fix layout skews
+        # Added Asset Type field directly between Classification and Dividend
         grid_data.append({
             "Ticker": ticker,
             "Asset Classification": data["name"],
+            "Asset Type": data["asset_type"],
             "Current Dividend %": f"{data['yield']:.2f}%",
             "Schedule": schedule_display,
             "Projected Payout Growth": f"{compounded_growth:.2f}%",
@@ -182,7 +192,6 @@ if analysis_data:
         
     df_grid = pd.DataFrame(grid_data)
     
-    # --- FIXED: EXPLICIT STANDARD COLUMN OVERLAY FOR PERFECT LEFT ALIGNMENT ---
     st.dataframe(
         df_grid, 
         use_container_width=True, 
