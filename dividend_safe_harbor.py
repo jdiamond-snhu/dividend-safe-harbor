@@ -101,8 +101,8 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
                 annual_divs = pd.Series(dtype=float)
             
             # Compute 5Y Growth CAGR
-            if len(annual_divs) >= 2 and float(annual_divs.iloc) > 0:
-                cagr = (float(annual_divs.iloc[-1]) / float(annual_divs.iloc)) ** (1 / (len(annual_divs) - 1)) - 1
+            if len(annual_divs) >= 2 and float(annual_divs.iloc[0]) > 0:
+                cagr = (float(annual_divs.iloc[-1]) / float(annual_divs.iloc[0])) ** (1 / (len(annual_divs) - 1)) - 1
                 div_growth_cagr = cagr * 100
             else:
                 div_growth_cagr = info.get('dividendGrowthRate5Y', 0.0) * 100 if info.get('dividendGrowthRate5Y') else 0.0
@@ -135,8 +135,10 @@ if analysis_data:
         cagr_decimal = data["div_growth_cagr"] / 100
         compounded_growth = ((1 + cagr_decimal) ** projection_years - 1) * 100
         
+        # Simulating real spread against cumulative horizon inflation for the grade
         real_yield_spread = data["yield"] + data["div_growth_cagr"] - inflation_rate
         
+        # Simplified Allocation Grade Engine
         if data["quote_type"] != "EQUITY":
             safety_status = "🔵 Passive Fund Pool"
             schedule_display = "Quarterly (ETF Proxy)" if "ETF" in data["quote_type"] else data["schedule"]
@@ -148,35 +150,19 @@ if analysis_data:
                 safety_status = "🔴 Value Trap (High Risk)"
             else:
                 safety_status = "🟡 Moderate Allocation"
-          
-        # Static internal dataframe key name to prevent sorting mixups
-        column_key = "Projected Payout Growth"
             
         grid_data.append({
             "Ticker": ticker,
             "Asset Classification": data["name"],
             "Current Dividend %": f"{data['yield']:.2f}%",
             "Schedule": schedule_display,
-            column_key: f"{compounded_growth:.2f}%",
+            f"Projected Payout Growth ({projection_years}Yr)": f"{compounded_growth:.2f}%",
             "Beta Risk": f"{data['beta']:.2f}",
             "Allocation Grade": safety_status
         })
         
     df_grid = pd.DataFrame(grid_data)
-    
-    # --- EXPLICIT ENFORCEMENT OF TOOLTIP ENVIRONMENT ---
-    st.dataframe(
-        df_grid, 
-        use_container_width=True, 
-        hide_index=True,
-        column_config={
-            "Projected Payout Growth": st.column_config.Column(
-                label=f"Projected Payout Growth ({projection_years}Yr)",
-                help="Estimated payout velocity assuming distributed dividends are systematically reinvested into purchasing more shares.",
-                disabled=True # Disables sorting modifications to clean up formatting
-            )
-        }
-    )
+    st.dataframe(df_grid, use_container_width=True, hide_index=True)
     
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
     st.info("💡 Pro Tip: Look for assets where strong historical growth velocity pairs with low beta risk to protect family wealth.")
