@@ -210,6 +210,6 @@ if analysis_data:
     )
     
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
-    st.info("💡 Pro Tip: Look for assets where strong historical growth velocity pairs with low beta risk to protect family wealth.")
+    st.info("💡 Pro Tip: Inflation rate % will change recommended projected Allocation Grade.")
 else:
     st.error("The underlying execution engine could not find valid asset data. Correct ticker entry formatting.")
