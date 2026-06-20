@@ -38,7 +38,7 @@ projection_years = st.sidebar.slider(
 st.markdown("### 🔍 Enterprise Search Pipeline")
 ticker_input = st.text_input(
     label="Enter Ticker Symbols (separated by commas):",
-    value="JNJ, VOO, GLD, PG, KO, XPAY, O",
+    value="SPY, JNJ, KO,",
 )
 
 tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
