@@ -41,6 +41,7 @@ ticker_input = st.text_input(
     value="JNJ, VOO, GLD, PG, KO, XPAY, O",
 )
 
+# Strip whitespace and convert strings to clean uppercase lists
 tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
 
 if len(tickers) == 0:
@@ -59,9 +60,10 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
         try:
             asset = yf.Ticker(ticker)
             
+            # Fetch yfinance core metadata safely
             try:
                 info = asset.info
-                if info is None:
+                if info is None or not isinstance(info, dict):
                     info = {}
             except Exception:
                 info = {}
@@ -69,9 +71,9 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
             quote_type = info.get('quoteType', 'EQUITY').upper()
             company_name = info.get('longName', ticker)
             
-            # FIXED: Keep as raw decimal (e.g. 0.0235) so Streamlit config handles percent scaling perfectly
+            # FIXED: Universal raw conversion scaling to prevent 235% layout bugs
             raw_yield = info.get('dividendYield', 0.0)
-            current_yield = float(raw_yield) if raw_yield else 0.0
+            current_yield = float(raw_yield * 100) if raw_yield else 0.0
             
             beta = info.get('beta', 1.0) if info.get('beta') else 1.0
 
@@ -81,7 +83,8 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
             except Exception:
                 dividends_history = pd.Series(dtype=float)
             
-            if not dividends_history.empty:
+            # Handle specialized asset scheduling parameters
+            if not dividends_history.empty and len(dividends_history) >= 1:
                 last_year_payouts = dividends_history.loc[dividends_history.index > (dividends_history.index[-1] - pd.Timedelta(days=365))]
                 payout_frequency = len(last_year_payouts)
                 
@@ -96,32 +99,43 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
                 else:
                     schedule = "Irregular Schedule"
                 
-                annual_divs = dividends_history.resample('YE').sum()
-                annual_divs = annual_divs[annual_divs.index.year < current_year]
+                # Resample historical distribution sequences safely
+                try:
+                    annual_divs = dividends_history.resample('YE').sum()
+                    annual_divs = annual_divs[annual_divs.index.year < current_year]
+                except Exception:
+                    annual_divs = pd.Series(dtype=float)
             else:
                 schedule = "N/A (No Payouts)"
                 annual_divs = pd.Series(dtype=float)
             
-            # Compute 5Y Growth CAGR
-            if len(annual_divs) >= 2 and float(annual_divs.iloc) > 0:
-                cagr = (float(annual_divs.iloc[-1]) / float(annual_divs.iloc)) ** (1 / (len(annual_divs) - 1)) - 1
-                div_growth_cagr = cagr * 100
+            # FIXED: Explicit row coordinate targeting (.iloc[0]) to avoid structural Pandas exceptions
+            if len(annual_divs) >= 2 and float(annual_divs.iloc[0]) > 0:
+                try:
+                    cagr = (float(annual_divs.iloc[-1]) / float(annual_divs.iloc[0])) ** (1 / (len(annual_divs) - 1)) - 1
+                    div_growth_cagr = cagr * 100
+                except Exception:
+                    div_growth_cagr = info.get('dividendGrowthRate5Y', 0.0) * 100 if info.get('dividendGrowthRate5Y') else 0.0
             else:
-                div_growth_cagr = info.get('dividendGrowthRate5Y', 0.0) * 100 if info.get('dividendGrowthRate5Y') else 0.0
+                fallback_cagr = info.get('dividendGrowthRate5Y', 0.0)
+                div_growth_cagr = float(fallback_cagr * 100) if fallback_cagr else 0.0
             
+            # Build unified asset metrics package
             results[ticker] = {
                 "name": company_name,
                 "quote_type": quote_type,
                 "yield": current_yield,
                 "schedule": schedule,
-                "div_growth_cagr": float(div_growth_cagr),
-                "beta": float(beta)
+                "div_growth_cagr": div_growth_cagr,
+                "beta": beta
             }
         except Exception:
+            # Shield loop processing from individual ticker failure points
             continue
             
     return results
 
+# Initiate global data execution thread
 with st.spinner("Processing deep global ticker data and running exclusions..."):
     analysis_data = fetch_and_analyze_dividend_data(tickers)
 
@@ -133,14 +147,13 @@ if analysis_data:
     
     grid_data = []
     for ticker, data in analysis_data.items():
-        # Dynamic Horizon Performance Math
+        # Dynamic horizon compounding calculation logic
         cagr_decimal = data["div_growth_cagr"] / 100
         compounded_growth = ((1 + cagr_decimal) ** projection_years - 1) * 100
         
-        # Recalculate yield conversion for proper spread evaluation math
-        yield_percent = data["yield"] * 100
-        real_yield_spread = yield_percent + data["div_growth_cagr"] - inflation_rate
+        real_yield_spread = data["yield"] + data["div_growth_cagr"] - inflation_rate
         
+        # Structure defensive presentation labels based on asset metadata wrappers
         if data["quote_type"] != "EQUITY":
             safety_status = "🔵 Passive Fund Pool"
             schedule_display = "Quarterly (ETF Proxy)" if "ETF" in data["quote_type"] else data["schedule"]
@@ -158,16 +171,16 @@ if analysis_data:
         grid_data.append({
             "Ticker": ticker,
             "Asset Classification": data["name"],
-            "Current Dividend %": data["yield"],  # Kept as decimal
+            "Current Dividend %": data["yield"],
             "Schedule": schedule_display,
-            column_key: f"{compounded_growth:.2f}%",
+            column_key: compounded_growth,
             "Beta Risk": f"{data['beta']:.2f}",
             "Allocation Grade": safety_status
         })
         
     df_grid = pd.DataFrame(grid_data)
     
-    # --- RENDER TABLE WITH NATIVE DECIMAL FORMATTING FIXED ---
+    # Render interactive spreadsheet with custom percentage column parameters
     st.dataframe(
         df_grid, 
         use_container_width=True, 
@@ -175,12 +188,12 @@ if analysis_data:
         column_config={
             "Current Dividend %": st.column_config.NumberColumn(
                 label="Current Dividend %",
-                format="%.2f%%",  # Displays 0.0235 beautifully as 2.35%
+                format="%.2f%%"
             ),
-            "Projected Payout Growth": st.column_config.Column(
+            "Projected Payout Growth": st.column_config.NumberColumn(
                 label=f"Projected Payout Growth ({projection_years}Yr)",
                 help="Estimated payout velocity assuming distributed dividends are systematically reinvested into purchasing more shares.",
-                disabled=True
+                format="%.2f%%"
             )
         }
     )
