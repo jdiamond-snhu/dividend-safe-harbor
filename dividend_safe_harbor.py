@@ -8,7 +8,7 @@ from datetime import datetime
 # ==============================================================================
 st.set_page_config(page_title="Nice & Boring Dividend Screener", layout="wide")
 st.title("🛡️ The 'Nice & Boring' Dividend Screener")
-st.subheader("Evaluating Corporate Capital Allocation & Pricing Power (Using data from 2018 to present)")
+st.subheader("Evaluating Corporate Capital Allocation & Pricing Power (using data from 2018 to present)")
 
 # ==============================================================================
 # 2. SIDEBAR CONTROLS
@@ -210,6 +210,6 @@ if analysis_data:
     )
     
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
-    st.info("💡 Pro Tip: Inflation rate % will change recommended projected Allocation Grade.")
+    st.info("💡 Pro Tip: Changing the Inflation rate % may change the recommended projected Allocation Grade for some equities.")
 else:
     st.error("The underlying execution engine could not find valid asset data. Correct ticker entry formatting.")
