@@ -223,4 +223,4 @@ if analysis_data:
     st.dataframe(df_grid, use_container_width=True, hide_index=True)
     
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
-    st.info(
+    st.error("The underlying execution engine could not find valid asset data. Correct ticker entry formatting.")
