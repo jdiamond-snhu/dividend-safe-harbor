@@ -9,7 +9,7 @@ from datetime import datetime
 st.set_page_config(page_title="Nice & Boring Dividend Screener", layout="wide")
 st.title("🛡️ The 'Nice & Boring' Dividend Screener")
 st.caption("By Jeff Diamond (2026)")
-st.subheader("🔍 Evaluating Corporate Capital Allocation & Pricing Power (using data from 2018 to present)")
+st.subheader("🔍 Capital Allocation & Compounding Power Evaluator (using data from 2018 to present)")
 
 # ==============================================================================
 # 2. SIDEBAR CONTROLS
