@@ -7,8 +7,8 @@ from datetime import datetime
 # 1. UI CONFIGURATION & HEADERS
 # ==============================================================================
 st.set_page_config(page_title="Nice & Boring Dividend Screener", layout="wide")
-st.title("🛡️ The 'Nice & Boring' Dividend Safety Screener")
-st.subheader("Evaluating Corporate Capital Allocation & Pricing Power (2018 - Present)")
+st.title("🛡️ The 'Nice & Boring' Dividend Screener")
+st.subheader("Evaluating Corporate Capital Allocation & Pricing Power from 2018 to Present)")
 
 # ==============================================================================
 # 2. SIDEBAR CONTROLS
@@ -181,11 +181,11 @@ if analysis_data:
         # Added Asset Type field directly between Classification and Dividend
         grid_data.append({
             "Ticker": ticker,
-            "Asset Classification": data["name"],
-            "Asset Type": data["asset_type"],
+            "Asset Name": data["name"],
+            "Asset Classification": data["asset_type"],
             "Current Dividend %": f"{data['yield']:.2f}%",
             "Schedule": schedule_display,
-            "Projected Payout Growth": f"{compounded_growth:.2f}%",
+            "Projected Compounded Payout Growth": f"{compounded_growth:.2f}%",
             "Beta Risk": f"{data['beta']:.2f}",
             "Allocation Grade": safety_status
         })
