@@ -66,35 +66,54 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
             quote_type = info.get('quoteType', 'EQUITY').upper()
             company_name = info.get('longName', ticker)
             
-            # Extract basic info
+            # --- EXTRACT CURRENT DIVIDEND % (FIXED FORMATTING BUG) ---
             raw_yield = info.get('dividendYield', 0.0)
             current_yield = (raw_yield * 100) if raw_yield else 0.0
-            beta = info.get('beta', 1.0) if info.get('beta') else 1.0
             
-            # Calculate Total Performance Since 2018
-            history = asset.history(start=f"{start_year}-01-01")
-            if not history.empty and len(history) > 10:
-                initial_price = float(history['Close'].iloc[0])
-                final_price = float(history['Close'].iloc[-1])
-                perf_since_2018 = ((final_price - initial_price) / initial_price) * 100
-            else:
-                perf_since_2018 = 0.0
+            beta = info.get('beta', 1.0) if info.get('beta') else 1.0
 
-            # Calculate Dividend Growth Velocity
+            # --- EXTRACT AND ANALYZE PAYOUT FREQUENCY (SCHEDULE) ---
             dividends_history = asset.dividends.loc[f"{start_year}-01-01":]
+            
             if not dividends_history.empty:
+                # Filter for a representative full historical year (e.g., 2024 or 2025) to judge frequency
+                sample_year = current_year - 1
+                payouts_in_sample = dividends_history[dividends_history.index.year == sample_year]
+                
+                # If sample year is completely blank, fallback to counting all rows divided by historical years
+                if payouts_in_sample.empty:
+                    unique_years = len(set(dividends_history.index.year))
+                    payout_frequency = len(dividends_history) / unique_years if unique_years > 0 else 0
+                else:
+                    payout_frequency = len(payouts_in_sample)
+                
+                # Determine Schedule String based on frequency clusters
+                if 10 <= payout_frequency <= 13:
+                    schedule = "Monthly"
+                elif 3 <= payout_frequency <= 5:
+                    schedule = "Quarterly"
+                elif 1 <= payout_frequency <= 2:
+                    schedule = "Bi-Annually / Annually"
+                elif payout_frequency > 13:
+                    schedule = "Weekly / Variable"
+                else:
+                    schedule = "Irregular Schedule"
+                
+                # Resample and clean up annual dividend totals for growth velocity
                 annual_divs = dividends_history.resample('YE').sum()
                 annual_divs = annual_divs[annual_divs.index.year < current_year]
             else:
+                schedule = "N/A (No Payouts)"
                 annual_divs = pd.Series(dtype=float)
             
-            if len(annual_divs) >= 2 and float(annual_divs.iloc[0]) > 0:
-                cagr = (float(annual_divs.iloc[-1]) / float(annual_divs.iloc[0])) ** (1 / (len(annual_divs) - 1)) - 1
+            # Calculate Payout Velocity
+            if len(annual_divs) >= 2 and float(annual_divs.iloc) > 0:
+                cagr = (float(annual_divs.iloc[-1]) / float(annual_divs.iloc)) ** (1 / (len(annual_divs) - 1)) - 1
                 div_growth_cagr = cagr * 100
             else:
                 div_growth_cagr = info.get('dividendGrowthRate5Y', 0.0) * 100 if info.get('dividendGrowthRate5Y') else 0.0
             
-            # Extract FCF Payout cleanly as a native Python float to avoid Pandas errors
+            # Extract FCF Payout Ratio cleanly 
             fcf_payout_ratio = 999.0
             if quote_type == "EQUITY":
                 cashflow = asset.cashflow
@@ -105,15 +124,15 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
                     available_years = cf_t.index.intersection(fin_t.index)
                     if not available_years.empty:
                         cf_t = cf_t.loc[available_years]
-                        ocf_col = 'Operating Cash Flow' if 'Operating Cash Flow' in cf_t.columns else cf_t.columns[0]
+                        ocf_col = 'Operating Cash Flow' if 'Operating Cash Flow' in cf_t.columns else cf_t.columns
                         capex_col = [c for c in cf_t.columns if 'Capital Expenditures' in str(c)]
                         
-                        recent_ocf = float(cf_t[ocf_col].iloc[0])
-                        recent_capex = float(cf_t[capex_col].iloc[0]) if capex_col else 0.0
+                        recent_ocf = float(cf_t[ocf_col].iloc)
+                        recent_capex = float(cf_t[capex_col].iloc) if capex_col else 0.0
                         recent_fcf = recent_ocf + recent_capex if recent_capex < 0 else recent_ocf - recent_capex
                         
                         div_col = [c for c in cf_t.columns if 'Dividend' in str(c)]
-                        recent_div_paid = abs(float(cf_t[div_col].iloc[0])) if div_col else 0.0
+                        recent_div_paid = abs(float(cf_t[div_col].iloc)) if div_col else 0.0
                         
                         if recent_fcf > 0:
                             fcf_payout_ratio = float((recent_div_paid / recent_fcf) * 100)
@@ -122,7 +141,7 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
                 "name": company_name,
                 "quote_type": quote_type,
                 "yield": float(current_yield),
-                "performance_2018": float(perf_since_2018),
+                "schedule": schedule,
                 "payout_ratio": float(fcf_payout_ratio),
                 "div_growth_cagr": float(div_growth_cagr),
                 "beta": float(beta)
@@ -145,14 +164,18 @@ if analysis_data:
     for ticker, data in analysis_data.items():
         payout_val = data["payout_ratio"]
         
+        # Override structural displays for ETFs/Passive funds
         if data["quote_type"] != "EQUITY":
             payout_display = f"N/A ({data['quote_type']})"
             safety_status = "🔵 Passive Fund Pool"
+            schedule_display = "Quarterly (ETF Proxy)" if "ETF" in data["quote_type"] else data["schedule"]
         elif payout_val == 999.0:
             payout_display = "Data Stalled"
             safety_status = "🟡 Moderate Allocation"
+            schedule_display = data["schedule"]
         else:
             payout_display = f"{payout_val:.2f}%"
+            schedule_display = data["schedule"]
             if payout_val < 60.0 and data["beta"] < 1.0:
                 safety_status = "🟢 Nice & Boring (Safe)"
             elif payout_val > 85.0 or data["beta"] > 1.3:
@@ -163,8 +186,8 @@ if analysis_data:
         grid_data.append({
             "Ticker": ticker,
             "Asset Classification": data["name"],
-            "Current Yield": f"{data['yield']:.2f}%",
-            "Performance Since 2018": f"{data['performance_2018']:.2f}%",
+            "Current Dividend %": f"{data['yield']:.2f}%",
+            "Schedule": schedule_display,
             "FCF Payout Ratio": payout_display,
             "5Y Payout Velocity": f"{data['div_growth_cagr']:.2f}%",
             "Beta Risk": f"{data['beta']:.2f}",
@@ -176,4 +199,5 @@ if analysis_data:
     
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
     st.info("💡 Pro Tip: Look for assets where strong historical growth velocity pairs with low beta risk to protect family wealth.")
-
+else:
+    st.error("The underlying execution engine could not find valid asset data. Correct ticker entry formatting.")
