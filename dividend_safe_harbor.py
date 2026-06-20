@@ -135,10 +135,8 @@ if analysis_data:
         cagr_decimal = data["div_growth_cagr"] / 100
         compounded_growth = ((1 + cagr_decimal) ** projection_years - 1) * 100
         
-        # Simulating real spread against cumulative horizon inflation for the grade
         real_yield_spread = data["yield"] + data["div_growth_cagr"] - inflation_rate
         
-        # Simplified Allocation Grade Engine
         if data["quote_type"] != "EQUITY":
             safety_status = "🔵 Passive Fund Pool"
             schedule_display = "Quarterly (ETF Proxy)" if "ETF" in data["quote_type"] else data["schedule"]
@@ -150,19 +148,33 @@ if analysis_data:
                 safety_status = "🔴 Value Trap (High Risk)"
             else:
                 safety_status = "🟡 Moderate Allocation"
+          
+        # Establish the dynamic header key name  
+        dynamic_column_key = f"Projected Payout Growth ({projection_years}Yr)"
             
         grid_data.append({
             "Ticker": ticker,
             "Asset Classification": data["name"],
             "Current Dividend %": f"{data['yield']:.2f}%",
             "Schedule": schedule_display,
-            f"Projected Payout Growth ({projection_years}Yr)": f"{compounded_growth:.2f}%",
+            dynamic_column_key: f"{compounded_growth:.2f}%",
             "Beta Risk": f"{data['beta']:.2f}",
             "Allocation Grade": safety_status
         })
         
     df_grid = pd.DataFrame(grid_data)
-    st.dataframe(df_grid, use_container_width=True, hide_index=True)
+    
+    # --- ADD QUESTION MARK MOUSE-OVER TOOLTIP VIA STREAMLIT COLUMN CONFIG ---
+    st.dataframe(
+        df_grid, 
+        use_container_width=True, 
+        hide_index=True,
+        column_config={
+            dynamic_column_key: st.column_config.TextColumn(
+                help="Estimated payout velocity assuming distributed dividends are systematically reinvested into purchasing more shares."
+            )
+        }
+    )
     
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
     st.info("💡 Pro Tip: Look for assets where strong historical growth velocity pairs with low beta risk to protect family wealth.")
