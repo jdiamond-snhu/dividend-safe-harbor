@@ -38,7 +38,7 @@ projection_years = st.sidebar.slider(
 # ==============================================================================
 st.markdown("### 🔍 Enterprise Search Pipeline")
 ticker_input = st.text_input(
-    label="Enter Ticker Symbols (separated by commas):",
+    label="Enter ticker symbols of **dividend-paying stocks** in the field below (separated by commas):",
     value="SPY, JNJ, KO,",
 )
 
