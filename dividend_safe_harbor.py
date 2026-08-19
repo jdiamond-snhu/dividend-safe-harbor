@@ -161,14 +161,10 @@ if analysis_data:
     for ticker, data in analysis_data.items():
         # --- DYNAMIC INFLATION SLIDER ADJUSTMENT ---
         # Adjust nominal growth CAGR down by the inflation slider to find the Real CAGR
-       # --- TOTAL RETURN STRUCTURAL ADJUSTMENT ---
-# Assume standard long-term nominal equity returns (e.g., 9%) adjusted by beta and inflation
-nominal_market_return = 9.0  
-expected_nominal_return = nominal_market_return * data["beta"]
-
-# Subtract the inflation slider to get the Real Return Rate
-real_return_rate = (expected_nominal_return - inflation_rate) / 100
-real_compounded_growth = ((1 + real_return_rate) ** projection_years - 1) * 100
+        real_cagr_decimal = (data["div_growth_cagr"] - inflation_rate) / 100
+        
+        # Calculate growth in real purchasing power over the projection horizon
+        real_compounded_growth = ((1 + real_cagr_decimal) ** projection_years - 1) * 100
         
         real_yield_spread = data["yield"] + data["div_growth_cagr"] - inflation_rate
         
@@ -216,3 +212,4 @@ real_compounded_growth = ((1 + real_return_rate) ** projection_years - 1) * 100
     st.info(f"💡 Active Stress Test: Projections are dynamically optimized for a **{inflation_rate}% inflation drag** over **{projection_years} years**.")
 else:
     st.error("The underlying execution engine could not find valid asset data. Correct ticker entry formatting.")
+
