@@ -17,7 +17,6 @@ st.subheader("Capital Allocation & Compounding Power Evaluator")
 st.sidebar.header("Macro Stress-Test Suite")
 st.sidebar.markdown("Simulate structural pricing power and future compounding timelines.")
 
-# Dynamic variables tied to calculations below
 inflation_rate = st.sidebar.slider(
     label="Simulated Annual Inflation Rate (%)",
     min_value=0.0,
@@ -32,14 +31,22 @@ projection_years = st.sidebar.slider(
     value=5,
     step=1,
 )
+baseline_market_return = st.sidebar.slider(
+    label="Expected Market Return Baseline (%)",
+    min_value=4.0,
+    max_value=15.0,
+    value=9.0,
+    step=0.5,
+    help="The expected long-term annualized nominal return of a broad market index (e.g., S&P 500) before risk adjustments."
+)
 
 # ==============================================================================
 # 3. TICKER INPUT
 # ==============================================================================
 st.markdown("### 🔍 Enterprise Search Pipeline")
 ticker_input = st.text_input(
-    label="Enter ticker symbols of **dividend-paying stocks or ETFs** (separated by commas):",
-    value="SPY, JNJ, KO",
+    label="Enter ticker symbols of **stocks or ETFs** (separated by commas):",
+    value="SPY, JNJ, KO, VUG",
 )
 tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
 
@@ -73,13 +80,13 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
             if "REIT" in industry_str or "Real Estate" in industry_str:
                 asset_type = "REIT"
             elif quote_type != "EQUITY":
-                asset_type = quote_type  # e.g., ETF, MUTUALFUND
+                asset_type = quote_type  
             elif industry_str:
                 asset_type = industry_str
             else:
                 asset_type = "Equity"
                 
-            # Dynamic Decimal Sanity Check
+            # Dynamic Yield Sanity Check
             raw_yield = info.get('dividendYield', 0.0)
             if raw_yield is not None:
                 raw_yield = float(raw_yield)
@@ -90,8 +97,7 @@ def fetch_and_analyze_dividend_data(ticker_list, start_year=2018):
             else:
                 current_yield = 0.0
                 
-            # --- REFINED BETA CAPTURE FOR ETFS & STOCKS ---
-            # ETFs use beta3Year; Equities use beta. Fall back to 1.0 if neither exists.
+            # --- UPDATED BETA FALLBACK LOGIC ---
             beta = info.get('beta3Year') or info.get('beta') or 1.0
             
             # --- EXTRACT AND ANALYZE PAYOUT FREQUENCY ---
@@ -159,15 +165,17 @@ if analysis_data:
     grid_data = []
     
     for ticker, data in analysis_data.items():
-        # --- DYNAMIC INFLATION SLIDER ADJUSTMENT ---
-        # Adjust nominal growth CAGR down by the inflation slider to find the Real CAGR
+        # 1. Payout Growth Engine (Original Real Dividend Growth Logic)
         real_cagr_decimal = (data["div_growth_cagr"] - inflation_rate) / 100
+        real_payout_growth = ((1 + real_cagr_decimal) ** projection_years - 1) * 100
         
-        # Calculate growth in real purchasing power over the projection horizon
-        real_compounded_growth = ((1 + real_cagr_decimal) ** projection_years - 1) * 100
+        # 2. Equity Appreciation Engine (New Added Logic showing asset value expansion)
+        expected_nominal_equity_growth = baseline_market_return * data["beta"]
+        real_equity_growth_rate = (expected_nominal_equity_growth - inflation_rate) / 100
+        real_equity_gains = ((1 + real_equity_growth_rate) ** projection_years - 1) * 100
         
+        # Grading Classification Rules
         real_yield_spread = data["yield"] + data["div_growth_cagr"] - inflation_rate
-        
         if data["quote_type"] != "EQUITY":
             safety_status = "🔵 Passive Fund Pool"
             schedule_display = "Quarterly (ETF Proxy)" if "ETF" in data["quote_type"] else data["schedule"]
@@ -186,7 +194,8 @@ if analysis_data:
             "Asset Classification": data["asset_type"],
             "Current Dividend %": f"{data['yield']:.2f}%",
             "Schedule": schedule_display,
-            "Real Payout Growth (Inflation-Adj)": f"{real_compounded_growth:.2f}%",
+            "Real Payout Growth (Inflation-Adj)": f"{real_payout_growth:.2f}%",
+            "Real Equity Capital Gains": f"{real_equity_gains:.2f}%",
             "Beta Risk": f"{data['beta']:.2f}",
             "Allocation Grade": safety_status
         })
@@ -198,18 +207,22 @@ if analysis_data:
         hide_index=True,
         column_config={
             "Current Dividend %": st.column_config.Column(
-                label="Current Dividend %",
+                label="Current Dividend %", 
                 disabled=True
             ),
             "Real Payout Growth (Inflation-Adj)": st.column_config.Column(
                 label=f"Real Payout Growth ({projection_years}Yr)",
-                help="Estimated real growth velocity of dividend payouts adjusted downward by your simulated annual inflation slider rate.",
+                help="Estimated real growth velocity of dividend payouts adjusted downward by your inflation slider.",
+                disabled=True
+            ),
+            "Real Equity Capital Gains": st.column_config.Column(
+                label=f"Real Equity Gains ({projection_years}Yr)",
+                help="Estimated purchasing power growth of the underlying shares based on index baseline returns scaled by asset Beta.",
                 disabled=True
             )
         }
     )
     st.markdown(f"### 🔮 Compounded Performance Projection Horizon ({projection_years} Years)")
-    st.info(f"💡 Active Stress Test: Projections are dynamically optimized for a **{inflation_rate}% inflation drag** over **{projection_years} years**.")
+    st.info(f"💡 Active Stress Test: Running dynamic simulation modeling a **{inflation_rate}% inflation drag** over a **{projection_years}-year** target timeline.")
 else:
     st.error("The underlying execution engine could not find valid asset data. Correct ticker entry formatting.")
-
