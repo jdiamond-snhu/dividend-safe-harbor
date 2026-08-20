@@ -45,8 +45,8 @@ baseline_market_return = st.sidebar.slider(
 # ==============================================================================
 st.markdown("### 🔍 Enterprise Search Pipeline")
 ticker_input = st.text_input(
-    label="**Directions:** Enter ticker symbols of any dividend-paying equity (separated by commas):",
-    value="SPY, JNJ, KO, VUG",
+    label="**Directions:** Enter ticker symbols of any dividend-paying equity (separated by commas) in the field below.",
+    value="JNJ, VOOV, VTSAX",
 )
 tickers = [t.strip().upper() for t in ticker_input.split(",") if t.strip()]
 
