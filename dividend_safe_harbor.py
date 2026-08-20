@@ -196,7 +196,7 @@ if analysis_data:
             "Schedule": schedule_display,
             "Real Payout Growth (Inflation-Adj)": f"{real_payout_growth:.2f}%",
             "Real Equity Capital Gains": f"{real_equity_gains:.2f}%",
-            "Beta Risk": f"{data['beta']:.2f}",
+            "Beta": f"{data['beta']:.2f}",
             "Allocation Grade": safety_status
         })
         
