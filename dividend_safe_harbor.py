@@ -8,7 +8,7 @@ from datetime import datetime
 # ==============================================================================
 st.set_page_config(page_title="Nice & Boring Dividend Screener", layout="wide")
 st.title("🛡️ The 'Nice & Boring' Dividend Screener")
-st.caption("By Jeff Diamond (2026)")
+st.caption("Designed by Jeff Diamond (Radecki), 2026")
 st.subheader("Capital Allocation & Compounding Power Evaluator")
 
 # ==============================================================================
